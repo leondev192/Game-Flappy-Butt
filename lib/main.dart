@@ -1,125 +1,222 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const FlappyButt());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class FlappyButt extends StatelessWidget {
+  const FlappyButt({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      debugShowCheckedModeBanner: false,
+      home: GameScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class GameScreen extends StatefulWidget {
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _GameScreenState createState() => _GameScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _GameScreenState extends State<GameScreen> {
+  static double birdY = 0;
+  double time = 0;
+  double height = 0;
+  double initialHeight = birdY;
+  bool gameStarted = false;
 
-  void _incrementCounter() {
+  // Obstacle variables
+  double barrierX = 1.5; // Initial position
+  double barrierHeight = Random().nextDouble() * 0.6 + 0.4; // Random height
+
+  // Score tracking
+  int score = 0;
+
+  // Buffer for collision sensitivity
+  final double bufferMargin = 0.05;
+
+  void jump() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      time = 0;
+      initialHeight = birdY;
+    });
+  }
+
+  void startGame() {
+    gameStarted = true;
+    Timer.periodic(const Duration(milliseconds: 30), (timer) {
+      // Physics
+      time += 0.02;
+      height = -4.9 * time * time + 2.8 * time; // Gravity and initial velocity
+      setState(() {
+        birdY = initialHeight - height;
+      });
+
+      // Barrier movement
+      setState(() {
+        if (barrierX < -1.5) {
+          barrierX = 1.5;
+          barrierHeight = Random().nextDouble() * 0.6 + 0.2; // Randomize height
+          score++; // Increment score when a barrier is passed
+        } else {
+          barrierX -= 0.015; // Barrier speed
+        }
+      });
+
+      // Check for collision
+      if (birdY > 1 ||
+          birdY < -1 ||
+          (barrierX < 0.25 &&
+              barrierX > -0.25 &&
+              (birdY < -1 + barrierHeight + bufferMargin ||
+                  birdY > 1 - barrierHeight - bufferMargin))) {
+        timer.cancel();
+        gameStarted = false;
+        _showGameOverDialog();
+      }
+    });
+  }
+
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ban thua roi!'),
+          content: Text('Diem cua ban la: $score'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                resetGame();
+              },
+              child: const Text('Retry'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void resetGame() {
+    setState(() {
+      birdY = 0;
+      time = 0;
+      initialHeight = birdY;
+      barrierX = 1.5;
+      barrierHeight = Random().nextDouble() * 0.6 + 0.2;
+      gameStarted = false;
+      score = 0;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+    return GestureDetector(
+      onTap: gameStarted ? jump : startGame,
+      child: Scaffold(
+        body: Column(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Stack(
+                children: [
+                  Container(
+                    color: Colors.blue,
+                  ),
+                  AnimatedContainer(
+                    alignment: Alignment(0, birdY),
+                    duration: const Duration(milliseconds: 0),
+                    child: const Bird(),
+                  ),
+                  AnimatedContainer(
+                    alignment: Alignment(barrierX, 1),
+                    duration: const Duration(milliseconds: 0),
+                    child: Barrier(size: barrierHeight, isBottom: true),
+                  ),
+                  AnimatedContainer(
+                    alignment: Alignment(barrierX, -1),
+                    duration: const Duration(milliseconds: 0),
+                    child: Barrier(size: 1 - barrierHeight, isBottom: false),
+                  ),
+                  Container(
+                    alignment: const Alignment(0, -0.3),
+                    child: gameStarted
+                        ? const SizedBox.shrink()
+                        : const Text(
+                            'Nhan de bat dau',
+                            style: TextStyle(fontSize: 30, color: Colors.white),
+                          ),
+                  ),
+                ],
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Container(
+              height: 15,
+              color: Colors.green,
+            ),
+            Expanded(
+              child: Container(
+                color: Colors.brown,
+                child: Center(
+                  child: Text(
+                    'So diem: $score',
+                    style: const TextStyle(fontSize: 20, color: Colors.white),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class Bird extends StatelessWidget {
+  const Bird({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      width: 50,
+      decoration: const BoxDecoration(
+        color: Colors.blue,
+        shape: BoxShape.circle,
+      ),
+      child: Image.asset(
+        'assets/pelican.png',
+        width: 40,
+        height: 40,
+      ),
+    );
+  }
+}
+
+class Barrier extends StatelessWidget {
+  final double size;
+  final bool isBottom;
+
+  const Barrier({Key? key, required this.size, required this.isBottom})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 50,
+      height: MediaQuery.of(context).size.height * size / 2,
+      decoration: BoxDecoration(
+        color: Colors.green,
+        border: Border.all(color: Colors.green[900]!, width: 10),
+        borderRadius: const BorderRadius.all(Radius.circular(15)),
+      ),
     );
   }
 }
